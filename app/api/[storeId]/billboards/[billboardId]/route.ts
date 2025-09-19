@@ -75,7 +75,7 @@ export async function DELETE(
 
     if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
     if (!storeId || !billboardId)
-      return new NextResponse("Store ID and Billboard ID are required", { status: 400 });
+      return new NextResponse("Store id and Billboard id are required", { status: 400 });
 
     // проверка, что этот store принадлежит пользователю
     const storeByUserId = await prismadb.store.findFirst({
