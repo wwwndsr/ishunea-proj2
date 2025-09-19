@@ -1,6 +1,16 @@
 import { clerkMiddleware } from '@clerk/nextjs/server'
 
-export default clerkMiddleware()
+import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
+
+export function middleware(req: NextRequest, ev: NextFetchEvent) {
+  // пропуск публичныех маршрутов
+  if (req.nextUrl.pathname.startsWith("/api/public")) {
+    return NextResponse.next();
+  }
+
+  return clerkMiddleware(req, ev);
+}
+
 
 export const config = {
   matcher: [

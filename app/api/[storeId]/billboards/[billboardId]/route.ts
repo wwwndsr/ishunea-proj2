@@ -84,7 +84,7 @@ export async function DELETE(
     if (!storeByUserId) return new NextResponse("Unauthorized", { status: 403 });
 
     // удаляем конкретный billboard
-    const billboard = await prismadb.billboard.findUnique({
+    const billboard = await prismadb.billboard.delete({
       where: { id: billboardId }
     });
 
