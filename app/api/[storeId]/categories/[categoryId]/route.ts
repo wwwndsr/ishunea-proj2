@@ -11,6 +11,7 @@ export async function GET(
 
     const category = await prismadb.category.findUnique({
       where: { id: categoryId },
+      include: { billboard: true }
     });
 
     if (!category) return new NextResponse("Category not found", { status: 404 });
