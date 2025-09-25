@@ -53,25 +53,31 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                 </div>
             ))}
           </div>
-          <CldUploadWidget onSuccess={onUpload} uploadPreset="ymlkwv78" >
-            {({open}) => {
-              const onClick = () => {
-                open();
-              }
+          <CldUploadWidget
+              uploadPreset="ymlkwv78"
+              onSuccess={onUpload}
+            >
+              {({ open }) => {
+                const handleClick = () => {
+                  if (typeof open === "function") {
+                    open();
+                  }
+                };
 
-              return (
-                <Button
-                  type="button"
-                  disabled={disabled}
-                  variant="secondary"
-                  onClick={onClick}
-                >
-                  <ImagePlus className="h-4 w-4 mr-2" />
+                return (
+                  <Button
+                    type="button"
+                    disabled={disabled}
+                    variant="secondary"
+                    onClick={handleClick}
+                  >
+                    <ImagePlus className="h-4 w-4 mr-2" />
                     Upload an Image
-                </Button>
-              )
-            }}
-          </CldUploadWidget>
+                  </Button>
+                );
+              }}
+            </CldUploadWidget>
+
         </div>
     )
 }
