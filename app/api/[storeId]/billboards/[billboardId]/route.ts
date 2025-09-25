@@ -9,13 +9,13 @@ export async function GET(
   context: { params: Promise<{ billboardId: string }> }
 ) {
   try {
-    const { userId } = await auth();
     const { billboardId } = await context.params;
 
-    // удаляем конкретный billboard
-    const billboard = await prismadb.billboard.delete({
-      where: { id: billboardId }
+    const billboard = await prismadb.billboard.findUnique({
+      where: { id: billboardId },
     });
+
+    if (!billboard) return new NextResponse("Billboard not found", { status: 404 });
 
     return NextResponse.json(billboard);
   } catch (error) {
@@ -26,44 +26,35 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  context: { params: Promise<{ storeId: string; billboardId: string }> } 
+  context: { params: Promise<{ storeId: string; billboardId: string }> }
 ) {
   try {
     const { userId } = await auth();
+    if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
+
+    const { storeId, billboardId } = await context.params;
     const body = await req.json();
     const { label, imageUrl } = body;
 
-    if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
+    if (!storeId || !billboardId) return new NextResponse("Store ID and Billboard ID are required", { status: 400 });
     if (!label) return new NextResponse("Label is required", { status: 400 });
     if (!imageUrl) return new NextResponse("Image URL is required", { status: 400 });
 
-    const { storeId, billboardId } = await context.params;
+    const store = await prismadb.store.findFirst({ where: { id: storeId, userId } });
+    if (!store) return new NextResponse("Unauthorized", { status: 403 });
 
-    if (!storeId || !billboardId) {
-      return new NextResponse("Store ID and Billboard ID are required", { status: 400 });
-    }
-
-    // проверка, что этот store принадлежит пользователю
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: storeId,
-        userId
-      }
-    });
-
-    if (!storeByUserId) return new NextResponse("Unauthorized", { status: 403 });
-
-    const billboard = await prismadb.billboard.update({
+    const updated = await prismadb.billboard.update({
       where: { id: billboardId },
-      data: { label, imageUrl }
+      data: { label, imageUrl },
     });
 
-    return NextResponse.json(billboard);
+    return NextResponse.json(updated);
   } catch (error) {
     console.log("[BILLBOARD_PATCH]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
+
 
 export async function DELETE(
   req: Request,
@@ -74,26 +65,26 @@ export async function DELETE(
     const { storeId, billboardId } = await context.params;
 
     if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
-    if (!storeId || !billboardId)
-      return new NextResponse("Store id and Billboard id are required", { status: 400 });
+    if (!storeId || !billboardId) return new NextResponse("Store and Billboard IDs required", { status: 400 });
 
-    // проверка, что этот store принадлежит пользователю
-    const storeByUserId = await prismadb.store.findFirst({
-      where: { id: storeId, userId }
-    });
-    if (!storeByUserId) return new NextResponse("Unauthorized", { status: 403 });
+    const store = await prismadb.store.findFirst({ where: { id: storeId, userId } });
+    if (!store) return new NextResponse("Unauthorized", { status: 403 });
 
-    // удаляем конкретный billboard
-    const billboard = await prismadb.billboard.delete({
-      where: { id: billboardId }
-    });
-
-    return NextResponse.json(billboard);
+    try {
+      const deleted = await prismadb.billboard.delete({ where: { id: billboardId } });
+      return NextResponse.json(deleted);
+    } catch (error: any) {
+      if (error.code === "P2003") {
+        return new NextResponse("Cannot delete billboard: it has dependent records", { status: 400 });
+      }
+      throw error;
+    }
   } catch (error) {
     console.log("[BILLBOARD_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
+
 
 
 

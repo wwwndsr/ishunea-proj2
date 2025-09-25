@@ -1,21 +1,19 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-
 import prismadb from "@/lib/prismadb";
-
 
 export async function GET(
   req: Request,
   context: { params: Promise<{ categoryId: string }> }
 ) {
   try {
-    const { userId } = await auth();
     const { categoryId } = await context.params;
 
-    // удаляем конкретный category
-    const category = await prismadb.category.delete({
-      where: { id: categoryId }
+    const category = await prismadb.category.findUnique({
+      where: { id: categoryId },
     });
+
+    if (!category) return new NextResponse("Category not found", { status: 404 });
 
     return NextResponse.json(category);
   } catch (error) {
@@ -26,39 +24,29 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  context: { params: Promise<{ storeId: string; categoryId: string }> } 
+  context: { params: Promise<{ storeId: string; categoryId: string }> }
 ) {
   try {
     const { userId } = await auth();
+    if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
+
+    const { storeId, categoryId } = await context.params;
     const body = await req.json();
     const { name, billboardId } = body;
 
-    if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
+    if (!storeId || !categoryId) return new NextResponse("Store id and Category id required", { status: 400 });
     if (!name) return new NextResponse("Name is required", { status: 400 });
     if (!billboardId) return new NextResponse("Billboard id is required", { status: 400 });
 
-    const { storeId, categoryId } = await context.params;
+    const store = await prismadb.store.findFirst({ where: { id: storeId, userId } });
+    if (!store) return new NextResponse("Unauthorized", { status: 403 });
 
-    if (!storeId || !categoryId) {
-      return new NextResponse("Store id and Category id are required", { status: 400 });
-    }
-
-    // проверка, что этот store принадлежит пользователю
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: storeId,
-        userId
-      }
-    });
-
-    if (!storeByUserId) return new NextResponse("Unauthorized", { status: 403 });
-
-    const category = await prismadb.category.update({
+    const updated = await prismadb.category.update({
       where: { id: categoryId },
-      data: { name, billboardId }
+      data: { name, billboardId },
     });
 
-    return NextResponse.json(category);
+    return NextResponse.json(updated);
   } catch (error) {
     console.log("[CATEGORY_PATCH]", error);
     return new NextResponse("Internal error", { status: 500 });
@@ -74,26 +62,22 @@ export async function DELETE(
     const { storeId, categoryId } = await context.params;
 
     if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
-    if (!storeId || !categoryId)
-      return new NextResponse("Store id and Category id are required", { status: 400 });
+    if (!storeId || !categoryId) return new NextResponse("Store id and Category id required", { status: 400 });
 
-    // проверка, что этот store принадлежит пользователю
-    const storeByUserId = await prismadb.store.findFirst({
-      where: { id: storeId, userId }
-    });
-    if (!storeByUserId) return new NextResponse("Unauthorized", { status: 403 });
+    const store = await prismadb.store.findFirst({ where: { id: storeId, userId } });
+    if (!store) return new NextResponse("Unauthorized", { status: 403 });
 
-    // удаляем конкретный category
-    const category = await prismadb.category.delete({
-      where: { id: categoryId }
-    });
-
-    return NextResponse.json(category);
+    try {
+      const deleted = await prismadb.category.delete({ where: { id: categoryId } });
+      return NextResponse.json(deleted);
+    } catch (error: any) {
+      if (error.code === "P2003") {
+        return new NextResponse("Cannot delete category: it has dependent records", { status: 400 });
+      }
+      throw error;
+    }
   } catch (error) {
     console.log("[CATEGORY_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
-
-
-
