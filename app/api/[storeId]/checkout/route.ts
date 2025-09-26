@@ -15,7 +15,7 @@ export async function OPTIONS() {
 
 export async function POST(
   req: Request,
-  context: { params: Promise<{ storeId: string }> } // нужно await
+  context: { params: Promise<{ storeId: string }> } 
 ) {
   const { storeId } = await context.params;
   const { productIds } = await req.json(); 
@@ -36,7 +36,7 @@ export async function POST(
       price_data: {
         currency: "USD",
         product_data: { name: product.name },
-        unit_amount: product.price.toNumber() * 100, // цена в центах
+        unit_amount: product.price.toNumber() * 100, 
       },
     })
   );
